@@ -1,0 +1,515 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>ScaleX Terminal</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, sans-serif; -webkit-tap-highlight-color: transparent; }
+        body { background-color: #121212; color: #ffffff; padding-bottom: 70px; user-select: none; }
+        
+        /* Top Bar & Header */
+        .header-bg { background: linear-gradient(180deg, #3d0a0a 0%, #121212 100%); padding: 15px; border-bottom: 1px solid #222; }
+        .user-info { display: flex; align-items: center; justify-content: space-between; margin-bottom: 15px; }
+        .user-profile { display: flex; align-items: center; gap: 10px; }
+        .avatar { width: 40px; height: 40px; border-radius: 50%; background: #2c2c2e; display: flex; align-items: center; justify-content: center; font-size: 20px; }
+        .user-details { font-size: 13px; color: #aaa; }
+        .user-id { font-size: 11px; color: #666; }
+        
+        .total-assets { margin-top: 10px; }
+        .assets-label { font-size: 12px; color: #888; }
+        .assets-amount { font-size: 28px; font-weight: bold; margin: 4px 0; color: #fff; }
+        .assets-change { font-size: 13px; color: #2ecc71; font-weight: 600; }
+
+        /* Action Buttons */
+        .action-buttons { display: flex; justify-content: space-around; margin: 15px 0; padding: 0 10px; }
+        .action-btn { display: flex; flex-direction: column; align-items: center; gap: 6px; background: none; border: none; color: #fff; font-size: 12px; cursor: pointer; }
+        .icon-circle { width: 44px; height: 44px; border-radius: 50%; background: #1e1e24; display: flex; align-items: center; justify-content: center; font-size: 18px; border: 1px solid #2a2a32; }
+
+        /* Navigation Content Tabs */
+        .tab-content { display: none; padding: 12px; }
+        .tab-content.active { display: block; }
+
+        /* Market / Home Lists */
+        .market-list { display: flex; flex-direction: column; gap: 10px; }
+        .crypto-row { display: flex; justify-content: space-between; align-items: center; background: #1a1a1e; padding: 12px 16px; border-radius: 12px; }
+        .crypto-info { display: flex; align-items: center; gap: 12px; }
+        .crypto-symbol { font-weight: bold; font-size: 15px; }
+        .crypto-price { text-align: right; font-weight: 600; font-size: 15px; }
+        .crypto-badge { padding: 4px 8px; border-radius: 6px; font-size: 12px; font-weight: bold; min-width: 65px; text-align: center; }
+        .bg-green { background: rgba(46, 204, 113, 0.15); color: #2ecc71; }
+        .bg-red { background: rgba(231, 76, 60, 0.15); color: #e74c3c; }
+
+        /* Trade Central Investment View */
+        .trade-center-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 55vh;
+            text-align: center;
+            padding: 20px;
+        }
+
+        .timer-display {
+            font-size: 26px;
+            font-weight: bold;
+            font-family: monospace;
+            color: #f1c40f;
+            margin-bottom: 25px;
+            background: #1a1a1e;
+            padding: 12px 24px;
+            border-radius: 30px;
+            border: 1px solid #333;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+        }
+
+        .btn-invest {
+            width: 170px;
+            height: 170px;
+            border-radius: 50%;
+            border: none;
+            background: linear-gradient(135deg, #f1c40f 0%, #e67e22 100%);
+            color: #000;
+            font-size: 18px;
+            font-weight: 800;
+            cursor: pointer;
+            box-shadow: 0 0 25px rgba(241, 196, 15, 0.35);
+            transition: all 0.3s ease;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 5px;
+        }
+
+        .btn-invest:active { transform: scale(0.95); }
+
+        .btn-invest:disabled {
+            background: #2a2a32;
+            color: #666;
+            box-shadow: none;
+            cursor: not-allowed;
+            border: 2px solid #333;
+        }
+
+        .invest-info-card {
+            margin-top: 30px;
+            background: #1a1a1e;
+            padding: 15px;
+            border-radius: 12px;
+            width: 100%;
+            max-width: 320px;
+            border: 1px solid #2a2a32;
+        }
+
+        /* Assets Cards */
+        .assets-card { background: #1a1a1e; border-radius: 12px; padding: 15px; margin-bottom: 12px; }
+        .card-title { font-size: 13px; color: #888; margin-bottom: 5px; }
+        .card-value { font-size: 20px; font-weight: bold; color: #f1c40f; }
+
+        /* Bottom Navigation Bar */
+        .bottom-nav { position: fixed; bottom: 0; left: 0; right: 0; height: 60px; background: #18181c; display: flex; justify-content: space-around; align-items: center; border-top: 1px solid #282830; z-index: 1000; }
+        .nav-item { display: flex; flex-direction: column; align-items: center; color: #666; font-size: 10px; text-decoration: none; cursor: pointer; gap: 3px; }
+        .nav-item.active { color: #f1c40f; }
+        .nav-icon { font-size: 20px; }
+
+        /* Modal Popups */
+        .modal { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.8); z-index: 2000; align-items: center; justify-content: center; padding: 20px; }
+        .modal-body { background: #1e1e24; width: 100%; max-width: 350px; border-radius: 16px; padding: 20px; text-align: center; border: 1px solid #333; }
+        .modal-title { font-size: 18px; font-weight: bold; margin-bottom: 10px; }
+        .modal-input { width: 100%; padding: 12px; border-radius: 8px; border: 1px solid #333; background: #121212; color: #fff; margin: 12px 0; font-size: 14px; }
+        .modal-btn { width: 100%; padding: 12px; border-radius: 8px; border: none; background: #f1c40f; color: #000; font-weight: bold; cursor: pointer; }
+        .modal-close { margin-top: 10px; color: #888; font-size: 12px; cursor: pointer; }
+    </style>
+</head>
+<body>
+
+    <!-- Header -->
+    <div class="header-bg">
+        <div class="user-info">
+            <div class="user-profile">
+                <div class="avatar">👤</div>
+                <div>
+                    <div class="user-details" id="user-display-name">Користувач</div>
+                    <div class="user-id" id="user-display-id">ID: ...</div>
+                </div>
+            </div>
+            <span style="font-size: 11px; background: rgba(241,196,15,0.2); color: #f1c40f; padding: 3px 8px; border-radius: 10px;">Випробування</span>
+        </div>
+        <div class="total-assets">
+            <div class="assets-label">Загальна оцінка активів</div>
+            <div class="assets-amount" id="total-balance">$0.0000</div>
+            <div class="assets-change" id="balance-status">Синхронізація...</div>
+        </div>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="action-buttons">
+        <button class="action-btn" onclick="openModal('depositModal')">
+            <div class="icon-circle">⬇️</div>
+            <span>Поповнити</span>
+        </button>
+        <button class="action-btn" onclick="openModal('withdrawModal')">
+            <div class="icon-circle">⬆️</div>
+            <span>Вилучити</span>
+        </button>
+        <button class="action-btn" onclick="switchTab('trade-tab', document.querySelectorAll('.nav-item')[1])">
+            <div class="icon-circle">🔄</div>
+            <span>Передача</span>
+        </button>
+    </div>
+
+    <!-- TAB 1: HOME -->
+    <div id="home-tab" class="tab-content active">
+        <div class="market-list" id="home-crypto-list"></div>
+    </div>
+
+    <!-- TAB 2: TRADE (INVESTMENT) -->
+    <div id="trade-tab" class="tab-content">
+        <div class="trade-center-container">
+            <div class="timer-display" id="timer-text">12:00:00</div>
+            
+            <button class="btn-invest" id="invest-btn" onclick="startInvestment()">
+                <span>ІНВЕСТУВАТИ</span>
+                <span style="font-size: 12px; font-weight: normal; opacity: 0.8;">+1.2% / 15 хв</span>
+            </button>
+
+            <div class="invest-info-card">
+                <div style="font-size: 13px; color: #888; margin-bottom: 5px;">Статус інвестиції</div>
+                <div style="font-size: 15px; font-weight: bold;" id="invest-status-text">Готово до запуску</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- TAB 3: ASSETS -->
+    <div id="assets-tab" class="tab-content">
+        <div class="assets-card">
+            <div class="card-title">Другий договірний рахунок</div>
+            <div class="card-value" id="assets-contract-val">0.0000 USDT</div>
+        </div>
+        <div class="assets-card">
+            <div class="card-title">Безстроковий контрактний рахунок</div>
+            <div class="card-value">0.0000 USDT</div>
+        </div>
+    </div>
+
+    <!-- Bottom Navigation (3 вкладки) -->
+    <div class="bottom-nav">
+        <div class="nav-item active" onclick="switchTab('home-tab', this)">
+            <span class="nav-icon">🏠</span>
+            <span>Додому</span>
+        </div>
+        <div class="nav-item" onclick="switchTab('trade-tab', this)">
+            <span class="nav-icon">🔄</span>
+            <span>Торгівля</span>
+        </div>
+        <div class="nav-item" onclick="switchTab('assets-tab', this)">
+            <span class="nav-icon">💼</span>
+            <span>Активи</span>
+        </div>
+    </div>
+
+    <!-- Modal Deposit -->
+    <div id="depositModal" class="modal">
+        <div class="modal-body">
+            <div class="modal-title">Поповнення рахунку</div>
+            <p style="font-size: 12px; color: #888; margin-bottom: 5px;">Мережа: <b>BNB Smart Chain (BEP-20)</b></p>
+            <p style="font-size: 11px; color: #f1c40f; margin-bottom: 10px;">Насилайте тільки USDT (BEP-20)!</p>
+            
+            <input type="text" id="my-wallet-addr" class="modal-input" value="0x184d575D8ad2cE193347570eb43b850CfcC4Fc38" readonly>
+            
+            <button class="modal-btn" onclick="copyWallet()">Скопіювати адрес</button>
+            <button class="modal-btn" style="background: #2ecc71; margin-top: 8px; color: #fff;" onclick="checkDeposit()">Я оплатив (Перевірити BSC)</button>
+            <div class="modal-close" onclick="closeModal('depositModal')">Закрити</div>
+        </div>
+    </div>
+
+    <!-- Withdraw Modal -->
+    <div id="withdrawModal" class="modal">
+        <div class="modal-body">
+            <div class="modal-title">Виведення коштів</div>
+            <input type="text" id="withdraw-addr" class="modal-input" placeholder="Введіть ваш USDT (BEP-20) адрес">
+            <input type="number" id="withdraw-amount" class="modal-input" placeholder="Сума виведення">
+            <button class="modal-btn" onclick="submitWithdrawal()">Підтвердити виведення</button>
+            <div class="modal-close" onclick="closeModal('withdrawModal')">Закрити</div>
+        </div>
+    </div>
+
+    <script>
+        const BSC_API_KEY = "64NR48AURBWDN27DJUHVAQQIHAIKCBCQZ7";
+        const WALLET_ADDRESS = "0x184d575D8ad2cE193347570eb43b850CfcC4Fc38";
+        const USDT_CONTRACT = "0x55d398326f99059ff775485246999027b3197955";
+
+        let userBalance = 0.0;
+        let timerInterval = null;
+
+        // 1. Унікальний ID для кожного користувача
+        function setupUser() {
+            let userId = "";
+            let userName = "Користувач";
+
+            try {
+                const tg = window.Telegram.WebApp;
+                tg.ready();
+                tg.expand();
+                if (tg.initDataUnsafe?.user) {
+                    userId = tg.initDataUnsafe.user.id.toString();
+                    userName = tg.initDataUnsafe.user.first_name || userName;
+                }
+            } catch (e) {}
+
+            if (!userId) {
+                userId = localStorage.getItem('unique_user_id');
+                if (!userId) {
+                    userId = Math.floor(1000000 + Math.random() * 9000000).toString();
+                    localStorage.setItem('unique_user_id', userId);
+                }
+            }
+
+            document.getElementById('user-display-name').innerText = userName;
+            document.getElementById('user-display-id').innerText = `ID: ${userId}`;
+        }
+        setupUser();
+
+        function updateBalanceDisplay() {
+            document.getElementById('total-balance').innerText = `$${userBalance.toFixed(4)}`;
+            document.getElementById('assets-contract-val').innerText = `${userBalance.toFixed(4)} USDT`;
+        }
+
+        // 2. Отримання балансу
+        async function fetchRealBalance() {
+            const statusEl = document.getElementById('balance-status');
+            
+            // Якщо зараз триває інвестиція, не перезаписуємо заморожений баланс з блокчейну
+            if (localStorage.getItem('invest_active') === 'true') {
+                statusEl.innerText = 'В інвестиції';
+                return;
+            }
+
+            statusEl.innerText = 'Оновлення...';
+            const apiUrl = `https://api.bscscan.com/api?module=account&action=tokenbalance&contractaddress=${USDT_CONTRACT}&address=${WALLET_ADDRESS}&tag=latest&apikey=${BSC_API_KEY}`;
+
+            try {
+                const response = await fetch(apiUrl);
+                const data = await response.json();
+
+                if (data.status === "1" || data.message === "OK") {
+                    const rawVal = BigInt(data.result);
+                    userBalance = Number(rawVal) / 1e18; 
+                    updateBalanceDisplay();
+                    statusEl.innerText = 'Синхронізовано з BSC';
+                } else {
+                    statusEl.innerText = 'Синхронізовано';
+                }
+            } catch (e) {
+                statusEl.innerText = 'Помилка мережі';
+            }
+        }
+
+        // 3. Логіка Інвестиції та 12-годинного таймера
+        function startInvestment() {
+            if (userBalance <= 0) {
+                alert("Недостатньо коштів на балансі для інвестиції!");
+                return;
+            }
+
+            const now = Date.now();
+            const twelveHoursMs = 12 * 60 * 60 * 1000;
+            const fifteenMinsMs = 15 * 60 * 1000;
+
+            const timerEndTime = now + twelveHoursMs;
+            const payoutTime = now + fifteenMinsMs;
+            const investedAmount = userBalance;
+
+            // Зберігаємо стан в localStorage
+            localStorage.setItem('timer_end_time', timerEndTime);
+            localStorage.setItem('payout_time', payoutTime);
+            localStorage.setItem('invested_amount', investedAmount);
+            localStorage.setItem('invest_active', 'true');
+            localStorage.setItem('payout_done', 'false');
+
+            // Списуємо баланс
+            userBalance = 0;
+            updateBalanceDisplay();
+
+            initInvestmentState();
+        }
+
+        function initInvestmentState() {
+            const isInvestActive = localStorage.getItem('invest_active') === 'true';
+            const timerEndTime = parseInt(localStorage.getItem('timer_end_time') || '0');
+            const payoutTime = parseInt(localStorage.getItem('payout_time') || '0');
+            const isPayoutDone = localStorage.getItem('payout_done') === 'true';
+
+            const investBtn = document.getElementById('invest-btn');
+            const timerText = document.getElementById('timer-text');
+            const statusText = document.getElementById('invest-status-text');
+
+            if (isInvestActive && Date.now() < timerEndTime) {
+                investBtn.disabled = true;
+                investBtn.querySelector('span').innerText = "В РОБОТІ";
+
+                // Запуск відліку таймера
+                if (timerInterval) clearInterval(timerInterval);
+                timerInterval = setInterval(() => {
+                    const now = Date.now();
+                    const timeLeft = timerEndTime - now;
+
+                    if (timeLeft <= 0) {
+                        clearInterval(timerInterval);
+                        localStorage.setItem('invest_active', 'false');
+                        investBtn.disabled = false;
+                        investBtn.querySelector('span').innerText = "ІНВЕСТУВАТИ";
+                        timerText.innerText = "12:00:00";
+                        statusText.innerText = "Готово до запуску";
+                        fetchRealBalance();
+                        return;
+                    }
+
+                    // Форматування таймера HH:MM:SS
+                    const hours = Math.floor(timeLeft / (1000 * 60 * 60));
+                    const minutes = Math.floor((timeLeft % (1000 * 60 * 60)) / (1000 * 60));
+                    const seconds = Math.floor((timeLeft % (1000 * 60)) / 1000);
+
+                    timerText.innerText = 
+                        `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+
+                    // Перевірка 15 хвилин для повернення коштів + 1.2%
+                    if (now >= payoutTime && !isPayoutDone) {
+                        const investedAmount = parseFloat(localStorage.getItem('invested_amount') || '0');
+                        const profitBalance = investedAmount * 1.012; // +1.2%
+                        
+                        userBalance = profitBalance;
+                        updateBalanceDisplay();
+                        localStorage.setItem('payout_done', 'true');
+                        statusText.innerText = "Прибуток +1.2% заміщено!";
+                        alert(`Вітаємо! 15 хвилин пройшло. Ваші кошти повернуто з прибутком +1.2% ($${profitBalance.toFixed(4)})`);
+                    } else if (!isPayoutDone) {
+                        const payoutLeftSec = Math.ceil((payoutTime - now) / 1000);
+                        const pMin = Math.floor(payoutLeftSec / 60);
+                        const pSec = payoutLeftSec % 60;
+                        statusText.innerText = `Виплата +1.2% через: ${pMin}хв ${pSec}с`;
+                    } else {
+                        statusText.innerText = "Депозит опрацьовано (+1.2%)";
+                    }
+
+                }, 1000);
+
+            } else {
+                localStorage.setItem('invest_active', 'false');
+                investBtn.disabled = false;
+                investBtn.querySelector('span').innerText = "ІНВЕСТУВАТИ";
+                timerText.innerText = "12:00:00";
+                statusText.innerText = "Готово до запуску";
+            }
+        }
+
+        // 4. Список криптовалют (Головна)
+        const cryptoData = {
+            'btcusdt': { name: 'BTC', price: '64250.00', change: '+1.25' },
+            'ethusdt': { name: 'ETH', price: '3480.50', change: '+0.80' },
+            'xrpusdt': { name: 'XRP', price: '0.5840', change: '-0.45' },
+            'ltcusdt': { name: 'LTC', price: '84.20', change: '+2.10' },
+            'bchusdt': { name: 'BCH', price: '380.10', change: '+1.05' },
+            'qtumusdt': { name: 'QTUM', price: '3.1500', change: '-0.12' }
+        };
+
+        function renderCryptoLists() {
+            for (const key in cryptoData) {
+                const item = cryptoData[key];
+                updateCryptoRow(key, item.price, item.change);
+            }
+        }
+
+        function updateCryptoRow(symbol, price, change) {
+            const isPositive = parseFloat(change) >= 0;
+            const badgeClass = isPositive ? 'bg-green' : 'bg-red';
+            const changeSign = isPositive ? '+' : '';
+            const coinName = cryptoData[symbol]?.name || symbol.toUpperCase();
+
+            const html = `
+                <div class="crypto-info">
+                    <span class="crypto-symbol">${coinName}</span>
+                </div>
+                <div>
+                    <div class="crypto-price">$${price}</div>
+                </div>
+                <div class="crypto-badge ${badgeClass}">${changeSign}${change}%</div>
+            `;
+
+            let rowHome = document.getElementById(`coin-home-${symbol}`);
+            if (!rowHome) {
+                rowHome = document.createElement('div');
+                rowHome.className = 'crypto-row';
+                rowHome.id = `coin-home-${symbol}`;
+                document.getElementById('home-crypto-list').appendChild(rowHome);
+            }
+            rowHome.innerHTML = html;
+        }
+
+        renderCryptoLists();
+
+        try {
+            const symbols = Object.keys(cryptoData);
+            const ws = new WebSocket(`wss://stream.binance.com:9443/ws/${symbols.map(s => s + '@ticker').join('/')}`);
+
+            ws.onmessage = (event) => {
+                const data = JSON.parse(event.data);
+                const symbol = data.s.toLowerCase();
+                const price = parseFloat(data.c).toFixed(symbol === 'xrpusdt' || symbol === 'qtumusdt' ? 4 : 2);
+                const change = parseFloat(data.P).toFixed(2);
+                updateCryptoRow(symbol, price, change);
+            };
+        } catch (e) {}
+
+        // Навігація та модальні вікна
+        function copyWallet() {
+            const copyText = document.getElementById("my-wallet-addr");
+            navigator.clipboard.writeText(copyText.value);
+            alert("Адрес гаманця скопійовано!");
+        }
+
+        async function checkDeposit() {
+            await fetchRealBalance();
+            alert(`Поточний баланс USDT: ${userBalance.toFixed(4)}`);
+            closeModal('depositModal');
+        }
+
+        function switchTab(tabId, el) {
+            document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
+            document.querySelectorAll('.nav-item').forEach(item => item.classList.remove('active'));
+            
+            document.getElementById(tabId).classList.add('active');
+            if (el) el.classList.add('active');
+        }
+
+        function openModal(id) { document.getElementById(id).style.display = 'flex'; }
+        function closeModal(id) { document.getElementById(id).style.display = 'none'; }
+
+        function submitWithdrawal() {
+            const addr = document.getElementById('withdraw-addr').value;
+            const amount = parseFloat(document.getElementById('withdraw-amount').value);
+
+            if (!addr || isNaN(amount) || amount <= 0) {
+                alert('Введіть коректну суму та адрес!');
+                return;
+            }
+            if (amount > userBalance) {
+                alert('Недостатньо коштів на балансі!');
+                return;
+            }
+
+            userBalance -= amount;
+            updateBalanceDisplay();
+            closeModal('withdrawModal');
+            alert(`Заявку на виведення ${amount} USDT створено!`);
+        }
+
+        // Старт додатка
+        fetchRealBalance();
+        initInvestmentState();
+    </script>
+</body>
+</html>
