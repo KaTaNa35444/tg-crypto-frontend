@@ -6,3 +6,5 @@ __pycache__/
 *.db
 .wheelhouse/*
 !.wheelhouse/.gitkeep
+
+source-check/
