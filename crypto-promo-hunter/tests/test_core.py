@@ -5,7 +5,7 @@ import pytest
 from sqlalchemy import select,update
 from pydantic import ValidationError
 from hunter.schema import PromoInput,Exchange,RewardType,utcnow,canonical_url
-from hunter.adapters import ADAPTERS,SourceUnavailable
+from hunter.adapters import ADAPTERS,SourceUnavailable,OfficialAdapter
 from hunter.models import Promotion,Job,Reminder,Version,User
 from hunter.service import DomainError
 from hunter.worker import Outbox
@@ -29,7 +29,7 @@ async def jobs(service,kind):
 
 @pytest.mark.parametrize('exchange',list(Exchange))
 def test_snapshot_parsing(exchange):
-    adapter=ADAPTERS[exchange]()
+    adapter=type('SnapshotAdapter',(OfficialAdapter,),{'exchange':exchange})()
     html=(Path(__file__).parent/'fixtures'/f'{exchange}.html').read_text()
     inp=adapter.parse_snapshot(html,f'https://www.{exchange}.com/')
     assert inp.raw_text and inp.title.startswith('Example')
