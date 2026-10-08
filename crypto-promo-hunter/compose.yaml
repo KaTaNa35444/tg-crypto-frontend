@@ -1,0 +1,51 @@
+name: crypto-promo-hunter
+services:
+  db:
+    image: postgres:16-alpine
+    profiles: [live]
+    environment:
+      POSTGRES_USER: hunter
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change-me-locally}
+      POSTGRES_DB: hunter
+    volumes: [pgdata:/var/lib/postgresql/data]
+    healthcheck:
+      test: [CMD-SHELL, 'pg_isready -U hunter -d hunter']
+      interval: 3s
+      timeout: 3s
+      retries: 20
+    restart: unless-stopped
+  bot:
+    build: .
+    profiles: [live]
+    env_file: .env
+    environment:
+      DEMO_MODE: 'false'
+    depends_on:
+      db: {condition: service_healthy}
+    restart: unless-stopped
+  demo-db:
+    image: postgres:16-alpine
+    profiles: [demo]
+    environment:
+      POSTGRES_USER: hunter
+      POSTGRES_PASSWORD: demo-only-local
+      POSTGRES_DB: demo
+    volumes: [demo-pgdata:/var/lib/postgresql/data]
+    healthcheck:
+      test: [CMD-SHELL, 'pg_isready -U hunter -d demo']
+      interval: 3s
+      timeout: 3s
+      retries: 20
+  demo:
+    build: .
+    profiles: [demo]
+    environment:
+      DATABASE_URL: postgresql+asyncpg://hunter:demo-only-local@demo-db:5432/demo
+      DEMO_MODE: 'true'
+      ADMIN_IDS: '1'
+      BOT_TOKEN: ''
+    depends_on:
+      demo-db: {condition: service_healthy}
+volumes:
+  pgdata:
+  demo-pgdata:
